@@ -1,4 +1,4 @@
-// Office viewer: Sixel graphics where the terminal supports them, half-block text otherwise.
+// Office viewer (Sixel).
 // Reads the state office-hook.js writes for every session and seats each agent
 // at a desk. Usually opened in a split pane by /scranton-office:office. Quit: q / Ctrl+C.
 const fs = require('fs');
@@ -6,10 +6,6 @@ const path = require('path');
 const os = require('os');
 const { buildStatic, renderFrame, michaelState, SEATS, CAST } = require('./office-art');
 const { encodeSixel } = require('./sixel');
-const { renderText } = require('./textmode');
-
-// 'sixel' or 'text'; detected from the terminal's DA1 reply, override with SCRANTON_MODE
-let MODE = 'sixel';
 
 const ROOT = path.join(os.homedir(), '.claude', 'scranton-office', 'state');
 const STALE_MS = 6 * 3600 * 1000; // older records are treated as stale
@@ -44,15 +40,6 @@ function queryTerminal(seq, re, ms = 300) {
 }
 
 async function detectTerminal() {
-  // DA1 reply lists the terminal's features; 4 means Sixel graphics
-  const forced = (process.env.SCRANTON_MODE || '').toLowerCase();
-  if (forced === 'sixel' || forced === 'text') MODE = forced;
-  else {
-    const da = await queryTerminal('\x1b[c', /\x1b\[\?([\d;]+)c/);
-    MODE = da && da[1].split(';').includes('4') ? 'sixel' : 'text';
-  }
-  if (MODE === 'text') return;
-
   if (!process.env.WT_SESSION) {
     const m = await queryTerminal('\x1b[16t', /\x1b\[6;(\d+);(\d+)t/);
     if (m) {
@@ -185,24 +172,13 @@ async function main() {
     lastSig = sig;
     lastSize = size;
 
-    // The image goes from row 2; title above, legend below
-    let image, imgCols, imgRows;
-    if (MODE === 'text') {
-      const frame = renderFrame(base, occupied, Math.floor(tick++ / 2), Date.now(), { overlay: true });
-      const t = renderText(frame, cols, Math.max(4, rows - 3));
-      imgCols = t.cols;
-      imgRows = t.rows;
-      const lc = Math.max(1, Math.floor((cols - imgCols) / 2) + 1);
-      image = t.lines.map((l, k) => `\x1b[${2 + k};${lc}H${l}`).join('');
-    } else {
-      const frame = renderFrame(base, occupied, Math.floor(tick++ / 2));
-      for (let i = 0; i < frame.color.length; i++) if (frame.color[i] < 0) frame.color[i] = BG;
-      const s = pickScale(frame.W, frame.H, cols, rows);
-      imgCols = Math.ceil((frame.W * s) / CELL_W);
-      imgRows = Math.ceil((frame.H * s) / CELL_H);
-      image = `\x1b[2;${Math.max(1, Math.floor((cols - imgCols) / 2) + 1)}H` + encodeSixel(frame.color, frame.W, frame.H, s);
-    }
+    const frame = renderFrame(base, occupied, Math.floor(tick++ / 2));
+    for (let i = 0; i < frame.color.length; i++) if (frame.color[i] < 0) frame.color[i] = BG;
+    const s = pickScale(frame.W, frame.H, cols, rows);
+    const imgCols = Math.ceil((frame.W * s) / CELL_W);
+    const imgRows = Math.ceil((frame.H * s) / CELL_H);
     const left = Math.max(1, Math.floor((cols - imgCols) / 2) + 1);
+    const sixel = encodeSixel(frame.color, frame.W, frame.H, s);
 
     const sessions = new Set(workers.map((w) => w.session));
     const head =
@@ -219,7 +195,7 @@ async function main() {
       });
     if (waiting) legend.push(`${fg('#9aa5b1')}+${waiting} waiting for a desk${RESET}`);
 
-    let buf = `\x1b[1;${left}H${head}\x1b[K${image}`;
+    let buf = `\x1b[1;${left}H${head}\x1b[K\x1b[2;${left}H${sixel}`;
     const per = Math.max(1, Math.floor(imgCols / 26));
     let r = 2 + imgRows;
     for (let k = 0; k < legend.length && r <= rows; k += per, r++)

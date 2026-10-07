@@ -19,18 +19,14 @@ regional manager leaves his office, walks over to someone's desk and delivers on
 - **Michael is not an agent.** He sits in his office, and about every 95 seconds he walks over and
   delivers a line, such as "That's what she said!" to Jim, "Why are you the way that you are?" to Toby
   or "I declare bankruptcy!" to Oscar.
-- **Works in any terminal.** Terminals with Sixel graphics get the full-resolution pixel art; anywhere
-  else (older Windows Terminal, the classic PowerShell console, macOS Terminal) the viewer falls back
-  to a lower-resolution version drawn with text characters, with names and speech bubbles as real text.
 - **Optional one-line status line** showing who is at work in the current session.
 
 ## Requirements
 
 - [Claude Code](https://claude.com/claude-code) with plugin support
 - Node.js 18 or newer on your `PATH`
-- For the full-resolution version, a terminal with **Sixel** graphics: Windows Terminal 1.22+, WezTerm,
-  iTerm2, foot, mlterm, xterm (`-ti vt340`). Other terminals get the text version automatically.
-- For automatic split panes: Windows Terminal, tmux or WezTerm. Anywhere else, run the
+- A terminal with **Sixel** graphics: Windows Terminal 1.22+, WezTerm, iTerm2, foot, mlterm, xterm (`-ti vt340`)
+- For automatic split panes: Windows Terminal (with `wta`), tmux or WezTerm. Anywhere else, run the
   viewer yourself in a second pane (see below).
 - **tmux users:** tmux only passes Sixel images through if it is version 3.4 or newer, built with
   Sixel support (`tmux -V`, and `sixel` in `tmux display -p '#{client_termfeatures}'`), *and* the
@@ -49,7 +45,7 @@ Restart Claude Code (or run `/hooks`) so the hooks load.
 
 | Command | What it does |
 |---|---|
-| `/scranton-office:office` | Opens the office in a split pane below Claude Code. Run it again to close it (in standard Windows Terminal, press `q` in the pane instead). |
+| `/scranton-office:office` | Opens the office in a split pane below Claude Code. Run it again to close it. |
 | `/scranton-office:statusline` | Installs the one-line status line. It won't overwrite a status line you already have. |
 | `/scranton-office:statusline remove` | Removes the status line. |
 
@@ -71,8 +67,7 @@ Claude Code hooks ──► scripts/office-hook.js ──► ~/.claude/scranton-
                         SubagentStart/Stop, ...)    agents/<id>    one file per running subagent
 
 scripts/office-view.js ──► reads every session's state, assigns desks, renders a frame
-                           (scripts/office-art.js), prints it as Sixel (scripts/sixel.js)
-                           or as half-block text (scripts/textmode.js)
+                           (scripts/office-art.js), encodes it as Sixel (scripts/sixel.js)
 ```
 
 - `office-art.js` builds the office from small voxels (1 unit ≈ 12 cm) and projects them
@@ -94,13 +89,8 @@ Run `node tools/screenshot.js` to regenerate `docs/screenshot.png` after changes
 
 ## Troubleshooting
 
-- **I get the blocky text version.** Your terminal didn't report Sixel support. Update Windows Terminal
-  to 1.22+ (Microsoft Store) or use WezTerm. If your terminal does support Sixel but doesn't say so,
-  force it with `SCRANTON_MODE=sixel`; `SCRANTON_MODE=text` does the opposite.
-- **The pane shows only the title line.** The terminal claimed Sixel support but didn't draw it.
-  Run the viewer with `SCRANTON_MODE=text`.
-- **There is a colored box around the office.** The viewer paints the empty area with your terminal's
-  background color; if it guessed wrong, set it with `SCRANTON_BG=#1e1e2e` (your color).
+- **The pane shows only the title line.** The terminal doesn't render Sixel in that pane. Try
+  Windows Terminal 1.22+ or WezTerm.
 - **Nobody sits down.** Make sure the plugin is enabled (`/plugin`) and that `node` is on the `PATH`
   Claude Code uses for hooks.
 - **The image is too big or too small.** The viewer picks an integer scale that fits the pane.
