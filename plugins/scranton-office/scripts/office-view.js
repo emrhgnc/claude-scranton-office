@@ -13,29 +13,51 @@ const FPS = 6; // while Michael walks; otherwise every other frame is drawn
 // Cell size in pixels for Sixel scaling. Windows Terminal uses a 10x20 virtual cell;
 // other terminals (WezTerm, iTerm2, foot...) are asked for the real size with CSI 16 t.
 let CELL_W = 10, CELL_H = 20;
+// The image is drawn fully opaque on the terminal's own background color, so every frame
+// overwrites the previous one completely and the screen never has to be cleared (no flicker).
+// Override with SCRANTON_BG=#rrggbb if the detected color is off.
+let BG = 0x0c0c0c;
 
-function queryCellSize() {
+// Send a terminal query and wait briefly for a reply matching `re`
+function queryTerminal(seq, re, ms = 300) {
   return new Promise((resolve) => {
-    if (process.env.WT_SESSION || !process.stdin.isTTY) return resolve();
+    if (!process.stdin.isTTY) return resolve(null);
     let buf = '';
     const onData = (d) => {
       buf += d.toString();
-      const m = buf.match(/\x1b\[6;(\d+);(\d+)t/);
-      if (m) {
-        CELL_H = Number(m[1]) || CELL_H;
-        CELL_W = Number(m[2]) || CELL_W;
-        done();
-      }
+      const m = buf.match(re);
+      if (m) done(m);
     };
-    const done = () => {
+    const done = (m) => {
       process.stdin.off('data', onData);
       clearTimeout(timer);
-      resolve();
+      resolve(m);
     };
-    const timer = setTimeout(done, 300);
+    const timer = setTimeout(() => done(null), ms);
     process.stdin.on('data', onData);
-    process.stdout.write('\x1b[16t');
+    process.stdout.write(seq);
   });
+}
+
+async function detectTerminal() {
+  if (!process.env.WT_SESSION) {
+    const m = await queryTerminal('\x1b[16t', /\x1b\[6;(\d+);(\d+)t/);
+    if (m) {
+      CELL_H = Number(m[1]) || CELL_H;
+      CELL_W = Number(m[2]) || CELL_W;
+    }
+  }
+  const env = /^#?([0-9a-f]{6})$/i.exec(process.env.SCRANTON_BG || '');
+  if (env) {
+    BG = parseInt(env[1], 16);
+    return;
+  }
+  // OSC 11 reply: rgb:RRRR/GGGG/BBBB (1-4 hex digits per channel)
+  const m = await queryTerminal('\x1b]11;?\x1b\\', /\]11;rgb:([0-9a-f]{1,4})\/([0-9a-f]{1,4})\/([0-9a-f]{1,4})/i);
+  if (m) {
+    const ch = (h) => Math.round((parseInt(h, 16) / (16 ** h.length - 1)) * 255);
+    BG = (ch(m[1]) << 16) | (ch(m[2]) << 8) | ch(m[3]);
+  }
 }
 
 // --- State and seat assignment -------------------------------------------------
@@ -122,11 +144,12 @@ async function main() {
       if (k === 'q' || k === '\x03') restore();
     });
   }
-  await queryCellSize();
+  await detectTerminal();
 
   let tick = 0;
   let lastSig = '';
   let lastSize = '';
+  let lastLegendEnd = 0;
   const draw = (force) => {
     const workers = readWorkers();
     const waiting = assignSeats(workers);
@@ -144,12 +167,13 @@ async function main() {
     }
     // Skip the redraw when nobody works, Michael is sitting and nothing changed
     if (!force && !occupied.size && michael === 'sit' && sig === lastSig && size === lastSize) return;
-    // Clear leftover labels/sixel when the cast or size changes
-    if (sig !== lastSig || size !== lastSize) out.write('\x1b[2J');
+    // Only a resize needs a full clear; frames are opaque and overwrite each other
+    if (size !== lastSize) out.write('\x1b[2J');
     lastSig = sig;
     lastSize = size;
 
     const frame = renderFrame(base, occupied, Math.floor(tick++ / 2));
+    for (let i = 0; i < frame.color.length; i++) if (frame.color[i] < 0) frame.color[i] = BG;
     const s = pickScale(frame.W, frame.H, cols, rows);
     const imgCols = Math.ceil((frame.W * s) / CELL_W);
     const imgRows = Math.ceil((frame.H * s) / CELL_H);
@@ -173,8 +197,12 @@ async function main() {
 
     let buf = `\x1b[1;${left}H${head}\x1b[K\x1b[2;${left}H${sixel}`;
     const per = Math.max(1, Math.floor(imgCols / 26));
-    for (let k = 0, r = 2 + imgRows; k < legend.length && r <= rows; k += per, r++)
-      buf += `\x1b[${r};${left}H${legend.slice(k, k + per).join('   ')}\x1b[K`;
+    let r = 2 + imgRows;
+    for (let k = 0; k < legend.length && r <= rows; k += per, r++)
+      buf += `\x1b[${r};1H\x1b[2K\x1b[${r};${left}H${legend.slice(k, k + per).join('   ')}`;
+    // Erase legend rows left over from a longer legend in the previous frame
+    for (let q = r; q < lastLegendEnd && q <= rows; q++) buf += `\x1b[${q};1H\x1b[2K`;
+    lastLegendEnd = r;
     out.write(buf);
   };
 

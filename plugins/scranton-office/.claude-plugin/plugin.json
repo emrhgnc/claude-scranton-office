@@ -1,7 +1,7 @@
 {
   "name": "scranton-office",
   "description": "A pixel-art Scranton branch office in your terminal: every Claude Code agent gets a desk, and the regional manager drops by with his favorite lines.",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": {
     "name": "Emrah Genc",
     "url": "https://github.com/emrhgnc"
