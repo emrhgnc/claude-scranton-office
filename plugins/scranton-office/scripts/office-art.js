@@ -471,22 +471,22 @@ function outline(img) {
 }
 
 // --- Characters ----------------------------------------------------------------
-// hair: null = bald; long/bun/tall/part: hairstyle; glasses/stache/tie/jacket: extras
+// hair: color, or null = bald; balding/long/bun/tall/part: hairstyle; glasses/stache/tie/jacket: extras
 const CAST = {
   Michael: { hair: '#2e2018', skin: '#e8b896', shirt: '#f0f0f0', tie: '#2c3e66', jacket: '#2b2f3a', pants: '#2b2f3a' },
   Dwight: { hair: '#6b4a2a', skin: '#f0c8a0', shirt: '#d9b84a', tie: '#5a3e22', glasses: true, part: true },
   Jim: { hair: '#6b4a2f', skin: '#edc29c', shirt: '#a8cbe8', tie: '#2c3e66', tall: true },
   Pam: { hair: '#b0603a', skin: '#f2c9a5', shirt: '#e8a5b5', long: true },
   Stanley: { hair: null, skin: '#6b4630', shirt: '#c0d4e4', tie: '#7a2e2e', stache: '#a0a0a0', glasses: true },
-  Phyllis: { hair: '#a08060', skin: '#f0c8a8', shirt: '#78a8a0', long: true, glasses: true },
+  Phyllis: { hair: '#a08060', skin: '#f0c8a8', shirt: '#78a8a0', long: true },
   Angela: { hair: '#ecd67e', skin: '#f5d5b8', shirt: '#cbb99e', bun: true },
   Oscar: { hair: '#222222', skin: '#c69468', shirt: '#6082a8', tie: '#2a2a2a', stache: '#222222' },
-  Kevin: { hair: null, skin: '#e8b48e', shirt: '#7fa070', tie: '#4a5a3a' },
+  Kevin: { hair: '#8a6a4a', balding: true, skin: '#e8b48e', shirt: '#7fa070', tie: '#4a5a3a' },
   Andy: { hair: '#8a5a3a', skin: '#f0c8a0', shirt: '#b5403a' },
   Creed: { hair: '#dcdcdc', skin: '#e8c0a0', shirt: '#6b6b55' },
   Meredith: { hair: '#c0502a', skin: '#f0c0a0', shirt: '#7a5aa0', long: true },
   Ryan: { hair: '#2a1d14', skin: '#e8c09a', shirt: '#3a3a3a', tie: '#888888' },
-  Toby: { hair: '#6b5a4a', skin: '#e8c09a', shirt: '#a8a8a8', tie: '#5a5a5a', stache: '#6b5a4a' },
+  Toby: { hair: '#6b5a4a', skin: '#e8c09a', shirt: '#a8a8a8', tie: '#5a5a5a' },
 };
 
 const FRONT = [
@@ -610,6 +610,8 @@ function personSprite(name, front, typing, noHands = false) {
   const p = CAST[name];
   let rows = (front ? FRONT : BACK).map((r) => [...r]);
   if (!p.hair) rows = rows.map((r, y) => r.map((ch) => (ch === 'H' && (front ? y < 3 : y < 5) ? 'S' : ch)));
+  // Balding: bare crown, hair left on the sides and back
+  if (p.balding) rows = rows.map((r, y) => r.map((ch) => (ch === 'H' && y < 3 ? 'S' : ch)));
   if (p.long) {
     if (front) for (let y = 3; y <= 11; y++) (rows[y][0] = 'H'), (rows[y][9] = 'H');
     else for (let y = 8; y <= 11; y++) for (let x = 1; x <= 8; x++) rows[y][x] = 'H';

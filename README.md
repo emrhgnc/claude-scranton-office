@@ -28,6 +28,9 @@ regional manager leaves his office, walks over to someone's desk and delivers on
 - A terminal with **Sixel** graphics: Windows Terminal 1.22+, WezTerm, iTerm2, foot, mlterm, xterm (`-ti vt340`)
 - For automatic split panes: Windows Terminal (with `wta`), tmux or WezTerm. Anywhere else, run the
   viewer yourself in a second pane (see below).
+- **tmux users:** tmux only passes Sixel images through if it is version 3.4 or newer, built with
+  Sixel support (`tmux -V`, and `sixel` in `tmux display -p '#{client_termfeatures}'`), *and* the
+  terminal tmux runs in supports Sixel. Otherwise the pane stays blank apart from the title line.
 
 ## Install
 
