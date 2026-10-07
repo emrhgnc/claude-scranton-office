@@ -694,8 +694,10 @@ function drawText(color, W, H, text, x0, y0, ink, bg) {
   return w;
 }
 
-// occupied: Map(seatIndex -> anything); returns { W, H, color: Int32Array }
-function renderFrame(base, occupied, tick, now = Date.now()) {
+// occupied: Map(seatIndex -> anything); returns { W, H, color: Int32Array, labels, bubble }
+// opts.overlay: leave name labels and the speech bubble out of the pixels and return them
+// instead, so the text-mode renderer can print them as real (readable) text
+function renderFrame(base, occupied, tick, now = Date.now(), opts = {}) {
   const { W, H, ox, oy, glassDepth, glassCol, glassA } = base;
   const color = Int32Array.from(base.color);
   const depth = Float32Array.from(base.depth);
@@ -761,6 +763,11 @@ function renderFrame(base, occupied, tick, now = Date.now()) {
     if (p.bubble) bubble = { x: X0 + 3, y: Y0 - 3, lines: p.bubble };
   }
 
+  if (opts.overlay) {
+    const out = labels.map((l) => ({ name: l.name, x: l.x, y: l.y + 2, color: CAST[l.name].shirt, on: (tick + l.i) % 2 === 0 }));
+    return { W, H, color, labels: out, bubble };
+  }
+
   // Name labels: name + a blinking yellow "working" dot
   for (const l of labels) {
     const ink = hex(CAST[l.name].shirt);
@@ -775,7 +782,7 @@ function renderFrame(base, occupied, tick, now = Date.now()) {
     }
   }
   if (bubble) speechBubble(color, W, H, bubble.x, bubble.y, bubble.lines);
-  return { W, H, color };
+  return { W, H, color, labels: [], bubble: null };
 }
 
 // White speech bubble whose tail points at (x, y)

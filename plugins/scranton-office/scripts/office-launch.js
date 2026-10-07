@@ -33,6 +33,14 @@ const BACKENDS = {
     },
     close: (id) => run('wta', ['kill-pane', '-t', id]).status === 0,
   },
+  // Standard Windows Terminal: `wt` can split and run the viewer but cannot close panes,
+  // so this pane is closed with q (the pane exits with the viewer)
+  wtClassic: {
+    available: () => process.platform === 'win32' && !!process.env.WT_SESSION && has('wt'),
+    open: () => (run('wt', ['-w', '0', 'split-pane', '-H', '-s', '0.5', 'node', VIEW]).status === 0 ? 'unmanaged' : null),
+    close: () => false,
+    unmanaged: true,
+  },
   tmux: {
     available: () => !!process.env.TMUX,
     open: () => run('tmux', ['split-window', '-v', '-p', '50', '-P', '-F', '#{pane_id}', viewCmd]).stdout?.trim() || null,
@@ -65,8 +73,13 @@ function main() {
   const id = name && BACKENDS[name].open();
   if (!id) {
     console.log('Could not open a split pane automatically (supported: Windows Terminal, tmux, WezTerm).');
-    console.log('Open a new terminal pane with Sixel support and run:');
+    console.log('Open a new terminal pane and run:');
     console.log(`  ${viewCmd}`);
+    console.log('Terminals without Sixel graphics get a lower-resolution text version.');
+    return;
+  }
+  if (BACKENDS[name].unmanaged) {
+    console.log('Office opened in a split pane. Press q inside it to close it.');
     return;
   }
   fs.mkdirSync(DIR, { recursive: true });
