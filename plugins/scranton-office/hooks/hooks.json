@@ -1,0 +1,12 @@
+{
+  "description": "Tracks the main agent and subagents so the office viewer knows who is working.",
+  "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/office-hook.js"] }] }],
+    "SessionEnd": [{ "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/office-hook.js"] }] }],
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/office-hook.js"] }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/office-hook.js"] }] }],
+    "StopFailure": [{ "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/office-hook.js"] }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/office-hook.js"] }] }],
+    "SubagentStop": [{ "hooks": [{ "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/office-hook.js"] }] }]
+  }
+}
